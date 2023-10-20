@@ -1,0 +1,567 @@
+---
+title: "TBOS CH5: Cross-Validation and Bootstrapping"
+author: "MAJ Chris Bingman and LTC James 'Jimbo' Starling"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r echo=FALSE}
+library(tidyverse)
+library(gridExtra)
+library(kableExtra)
+library(boot)
+library(ggplot2)
+library(dplyr)
+library(ISLR2)
+library(pROC)
+library(caret)
+library(nhanesA)
+library(klaR)  # Naive Bayes
+```
+
+## What is Cross-Validation?
+
+Cross-Validation is a method, or set of methods, to evaluate how well a model can predict new data
+
+The three different approaches are:
+
+1. Validation Set
+2. Leave-One-Out Cross-Validation (LOOCV)
+3. k-Fold Cross-Validation
+
+Let's explore Cross-Validation using linear regression first, so we'll use the same data set, **National Health and Nutrition Examination Survey (NHANES)**, from Chapter 3. Below is a scatter plot of systolic vs. diastolic blood pressure for 50 randomly-selected observations from that data... just to see what it looks like.
+
+
+```{r echo=FALSE}
+survey <- read_csv("samp_nhanes.csv")
+set.seed(1)
+survey1 <- sample_n(survey, 50)
+survey1 %>%
+    ggplot(aes(x = bp_di, y = bp_sys)) + geom_point()+
+  labs(x = "Diastolic Blood Pressure", y = "Systolic Blood Pressure", title = "Blood Pressure")
+```
+
+### An Initial Model
+
+Let's first fit a model using all of the observations. We'll play around with which variables to include using some manual forward selection.
+
+We start with including bp_di, then adding in bmi, age, etc.
+
+The table below shows each model's associated MSE.
+
+
+```{r}
+
+set.seed(42)
+
+#Using only diastolic
+bp.mod.a = survey %>%
+    lm(bp_sys ~ bp_di, data = .)
+
+#Adding BMI
+bp.mod.b = survey %>%
+    lm(bp_sys ~ bp_di + bmi, data = .)
+
+#Adding age
+bp.mod.c = survey %>%
+    lm(bp_sys ~ bp_di + bmi + age, data = .)
+
+#Adding female
+bp.mod.d = survey %>%
+    lm(bp_sys ~ bp_di + bmi + age + female, data = .)
+
+#Adding fat_total
+bp.mod.e = survey %>%
+    lm(bp_sys ~ bp_di + bmi + age + female + fat_total, data = .)
+
+#Adding glucose
+bp.mod.f = survey %>%
+    lm(bp_sys ~ bp_di + bmi + age + female + fat_total + glucose, data = .)
+
+#Adding hdl
+bp.mod.g = survey %>%
+    lm(bp_sys ~ bp_di + bmi + age + female + fat_total + glucose + hdl, data = .)
+
+model_summ.a <-summary(bp.mod.a)
+MSE.a=mean(model_summ.a$residuals^2)
+
+model_summ.b <-summary(bp.mod.b)
+MSE.b=mean(model_summ.b$residuals^2)
+
+model_summ.c <-summary(bp.mod.c)
+MSE.c=mean(model_summ.c$residuals^2)
+
+model_summ.d <-summary(bp.mod.d)
+MSE.d=mean(model_summ.d$residuals^2)
+
+model_summ.e <-summary(bp.mod.e)
+MSE.e=mean(model_summ.e$residuals^2)
+
+model_summ.f <-summary(bp.mod.f)
+MSE.f=mean(model_summ.f$residuals^2)
+
+model_summ.g <-summary(bp.mod.g)
+MSE.g=mean(model_summ.g$residuals^2)
+
+df <- data.frame (col1 = "MSE",
+                  col2 = MSE.a,
+                  col2 = MSE.b,
+                  col2 = MSE.c,
+                  col2 = MSE.d,
+                  col2 = MSE.e,
+                  col2 = MSE.f,
+                  col2 = MSE.g)
+colnames(df) = c("", "bp_di", "+bmi", "+age", "+female", "+fat_total", "+glucose", "+hdl") 
+
+kable(df, row.names = F) %>%
+     column_spec (1:8, border_left = T, border_right = T) %>% 
+     kable_styling()
+```
+
+
+Here, we see that the greatest drop in MSE occurs when we add age. To keep a fairly simple model, we'll continue using **ONLY** bp_di, bmi, and age as our regressors to predict systolic blood pressure.
+
+Our **base** model using all 200 observations is:
+
+```{r,results='hide'}
+set.seed(42)
+summary(bp.mod.c)
+```
+
+$$ \hat{bp_{sys}} = 55.28875 + 0.56074 \times (bp_{di}) + 0.20988 \times (bmi) + 0.48968 \times (age) $$
+
+Which has an $R^2$ of 0.4604 and an $MSE$ of 190.838
+
+So we know how well our model predicts used data... how does it perform when predicting new data?
+
+## The Validation Set Approach
+
+Let's split the data up into two **equally-sized** groups at **random**. The first subset of data is your training data. Using only that, we can create the model below:
+
+```{r,results='hide'}
+set.seed(42)
+train <- sample(200,100)
+bp.mod <- lm(bp_sys ~ bp_di + bmi + age, data=survey, subset=train)
+summary(bp.mod)
+
+```
+
+$$ \hat{bp_{sys}} = 62.46414 + 0.44060 \times (bp_{di}) + 0.23122 \times (bmi) + 0.50305 \times (age) $$
+
+With $R^2$ of 0.461
+
+Now, we use the second half of the data to validate our model and we see that:
+
+```{r,results='hide'}
+set.seed(42)
+attach(survey)
+mean((survey$bp_sys - predict(bp.mod,survey))[-train]^2)
+```
+
+
+$$ MSE=197.0172 $$
+
+Naturally, leaving some of the data out will create a worse model. Our model with only half the observations has a slightly better $R^2$ but a slightly worse $MSE$. Results are still pretty comparable and our model appears to be robust in predicting **new** data.
+
+### To mirror the book...
+
+If we want to make our model better, we can explore using a higher degree... but which variable should we increase the power of??? 
+
+
+```{r}
+survey %>%
+    ggplot(aes(x = bp_di, y = bp_sys)) + geom_point() +
+  labs(x = "Diastolic Blood Pressure", y = "Systolic Blood Pressure", title = "Which Variable to Increase Degree?")
+survey %>%
+    ggplot(aes(x = bmi, y = bp_sys)) + geom_point() + 
+  labs(x = "BMI", y = "Systolic Blood Pressure", title = "Which Variable to Increase Degree?")
+survey %>%
+    ggplot(aes(x = age, y = bp_sys)) + geom_point() + 
+  labs(x = "Age", y = "Systolic Blood Pressure", title = "Which Variable to Increase Degree?")
+```
+
+Let's pick age. Now, we'll create models up to the 10th degree (for only age) and then use our method of the validation set to determine which one is best based off the MSE.
+
+Below is a plot comparing all 10 different models.
+
+```{r}
+
+set.seed(42)
+bp.mod.mse <- rep(0,10)
+x <- rep(0,10)
+for (i in 1:10) {
+bp.mod <- glm(bp_sys ~ bp_di + bmi + poly(age, i), data=survey, subset=train)
+bp.mod.mse[i] <- mean((bp_sys - predict(bp.mod,survey))[-train]^2)
+x[i] <- (i)
+}
+
+df <- data.frame(x,bp.mod.mse)
+
+ggplot(df, aes(x=x, y=bp.mod.mse)) +
+  geom_point()+
+labs(x = "Degree Polynomial", y = "MSE", title = "Validation Set Approach")+
+  scale_x_continuous(limits=c(1,10), breaks=c(seq(from = 1, to = 10, by = 1)))
+
+```
+
+It appears that a model with age of degree 2 has the lowest MSE. Thus, our new and improved model using the Validation Set Approach with associated $MSE$ is:
+
+```{r,results='hide'}
+set.seed(42)
+bp.mod <- glm(bp_sys ~ bp_di + bmi + poly(age,2), data=survey, subset=train)
+summary(bp.mod)
+
+attach(survey)
+mean((bp_sys - predict(bp.mod,survey))[-train]^2)
+
+```
+
+$$ \hat{bp_{sys}} = 68.9465 + 0.6210 \times (bp_{di}) + 0.3684 \times (bmi) + 133.1965 \times (age) + 89.4411 \times (age)^2 $$
+
+$$ MSE=188.8375 $$
+
+
+An issue with the Validation Set Approach is the amount of variability you can have using different "splits" of data
+
+So let's repeat the above process 10 times using different "splits" and testing different degrees of age...
+
+```{r,results='hide'}
+startTime1 <- Sys.time()
+
+x <- rep(0,10)
+for (i in 1:10) {
+  for (j in 1:10){
+    set.seed(i+1)
+train <- sample(200,100)
+bp.mod.mse <- rep(0,10)
+bp.mod <- glm(bp_sys ~ bp_di + bmi + poly(age, j), data=survey, subset=train)
+bp.mod.mse <- mean((bp_sys - predict(bp.mod,survey))[-train]^2)
+df[j,i] <- data.frame(bp.mod.mse)
+}
+}
+
+z=c(1,2,3,4,5,6,7,8,9,10)
+ggplot(df, aes(x=z)) + 
+  geom_line(aes(y = x), color = "black") + 
+  geom_line(aes(y = bp.mod.mse), color ="red") +
+  geom_line(aes(y = bp.mod.mse.1), color = "blue") + 
+  geom_line(aes(y = bp.mod.mse.2), color ="yellow")+ 
+  geom_line(aes(y = bp.mod.mse.3), color = "green") + 
+  geom_line(aes(y = bp.mod.mse.4), color ="purple") +
+  geom_line(aes(y = bp.mod.mse.5), color = "orange") + 
+  geom_line(aes(y = bp.mod.mse.6), color ="pink") +
+  geom_line(aes(y = bp.mod.mse.7), color = "brown") + 
+  geom_line(aes(y = bp.mod.mse.8), color ="gray") +
+  scale_x_continuous(limits=c(1, 10), breaks=c(seq(from = 1, to = 10, by = 1))) +
+labs(x = "Degree of Model", y = "MSE", title = "Variation in 'Splits'")
+
+endTime1 <- Sys.time()
+
+time_to_calc1 = endTime1-startTime1
+
+time_to_calc1
+
+```
+
+We can see here that there is a good amount of variation depending on which observations are picked; all models, however, agree that the second order has the lowest MSE. Also note how long this code took to run
+
+
+## Leave-One-Out Cross-Vallidation Approach (LOOCV):
+
+Now, instead of splitting our data up into two equal size groups, we remove one observation to act as our validation data. For these data, that means that we're training our model using 199/200 observations.
+
+This is done "n" times and creates "n" MSEs associated with each iteration.
+
+All of these MSEs are averaged to give the LOOCV estimate for the test MSE.
+
+$$ CV_{(n)} = \frac{1}{n} \sum_{i=1}^{n}{MSE_i} $$
+
+Depending on the size of the data set, this can be very computationally expensive. If conducting a least squares linear or polynomial regression, the below equation works to find the LOOCV test MSE:
+
+$$ CV_{(n)} = \frac{1}{n} \sum_{i=1}^{n}{\left(\frac{y_i-\hat{y_i}}{1-h_i}\right)^2} $$
+
+where $\hat{y_i}$ is the *i*th fitted value from the original least squares fit and $h_i$ is the leverage defined in Chapter 3.
+
+The LOOCV approach has less bias and variability than using the 50% validation set approach because we're taking the average of *n* MSEs.
+
+
+Using the LOOCV method: 
+
+
+```{r, results='hide'}
+set.seed(42)
+
+glm.bp <- glm(bp_sys ~ bp_di + bmi + age, data=survey)
+summary(glm.bp)
+cv.err <- cv.glm(survey,glm.bp)
+cv.err$delta
+
+```
+
+
+The new model and associated MSE is:
+
+$$ \hat{bp_{sys}} = 55.28875 + 0.56074 \times (bp_{di}) + 0.20988 \times (bmi) + 0.48968 \times (age) $$
+
+$$ MSE = 198.8966 $$
+
+
+Recall that for the Validation Set Approach, $MSE = 197.0172$. So these results are very similar.
+
+
+Now let's do the same thing as before where we look at 10 different degrees of age to assess the variation in the LOOCV method by changing the seed each time.
+
+```{r}
+startTime2 <- Sys.time()
+
+set.seed(42)
+
+x <- rep(0,10)
+for (i in 1:10) {
+  for (j in 1:10){
+    set.seed(i+1)
+glm.bp <- glm(bp_sys ~ bp_di + bmi + poly(age, j), data=survey)
+summary(glm.bp)
+cv.err <- cv.glm(survey,glm.bp)
+cv.err$delta
+df[j,i] <- data.frame(cv.err$delta)
+}
+}
+
+z=c(1,2,3,4,5,6,7,8,9,10)
+ggplot(df, aes(x=z)) + 
+  geom_line(aes(y = x), color = "black") + 
+  geom_line(aes(y = bp.mod.mse), color ="red") +
+  geom_line(aes(y = bp.mod.mse.1), color = "blue") + 
+  geom_line(aes(y = bp.mod.mse.2), color ="yellow")+ 
+  geom_line(aes(y = bp.mod.mse.3), color = "green") + 
+  geom_line(aes(y = bp.mod.mse.4), color ="purple") +
+  geom_line(aes(y = bp.mod.mse.5), color = "orange") + 
+  geom_line(aes(y = bp.mod.mse.6), color ="pink") +
+  geom_line(aes(y = bp.mod.mse.7), color = "brown") + 
+  geom_line(aes(y = bp.mod.mse.8), color ="gray") +
+  scale_x_continuous(limits=c(1, 10), breaks=c(seq(from = 1, to = 10, by = 1))) +
+labs(x = "Degree of Model", y = "MSE", title = "Variation in 'Splits'")
+
+endTime2 <- Sys.time()
+time_to_calc2 = endTime2 - startTime2
+
+time_to_calc2
+```
+
+Notice that there is no variation in the LOOCV method. This approach with 10 different seeds produced exactly the same results each time!
+
+Also, the time required to calculate this chunk took a **whopping 37(ish) seconds.** Try doing this with 1,000 observations!
+
+Our new model using LOOCV is:
+
+```{r,results='hide'}
+set.seed(42)
+
+glm.bp <- glm(bp_sys ~ bp_di + bmi + poly(age, 2), data=survey)
+summary(glm.bp)
+cv.err <- cv.glm(survey,glm.bp)
+cv.err$delta
+
+```
+
+
+$$ \hat{bp_{sys}} = 62.77146 + 0.73499 \times (bp_{di}) + 0.31408 \times (bmi) + 130.85854 \times (age) + 76.18619 \times (age)^2 $$
+with
+
+$$ MSE = 175.7128 $$
+
+Compared to our Validation Set model:
+
+$$ \hat{bp_{sys}} = 68.9465 + 0.6210 \times (bp_{di}) + 0.3684 \times (bmi) + 133.1965 \times (age) + 89.4411 \times (age)^2 $$
+
+$$ MSE=188.8375 $$
+Now, this is better than all our other models so far, however, very computationally expensive.
+
+
+## k-Fold Cross-Validation:
+
+Now, instead of using one observation for our validation, or creating and testing "n" different models, we'll split our data up into "k" equally sized subsets. Typical values for "k" are 5 or 10. So, when $k=5$, you are splitting your original data set up into groups of 20% of the data.
+
+The average of the MSEs are found just as in the LOOCV method but using the equation below:
+
+$$ CV_{(k)} = \frac{1}{k} \sum_{i=1}^{k}{MSE_i} $$
+Now, let's see what MSE we get when k=4, k=5, k=10, and using the first order of age.
+
+
+```{r,results='hide'}
+
+glm.bp <- glm(bp_sys ~ bp_di + bmi + age, data=survey)
+summary(glm.bp)
+
+cv.error.1 <- cv.glm(survey,glm.bp,K=4)$delta[1]
+cv.error.1
+
+cv.error.2 <- cv.glm(survey,glm.bp,K=5)$delta[1]
+cv.error.2
+
+cv.error.3 <- cv.glm(survey,glm.bp,K=10)$delta[1]
+cv.error.3
+
+```
+
+$$ MSE_{k=4}=200.7973 $$
+
+$$ MSE_{k=5}=204.6547 $$
+
+$$ MSE_{k=10}=199.0362 $$
+
+As we can see, varying the value of k does change the MSE of our model, but not by much. It looks like k=10 yields the best MSE in this approach. Also notice that this is very similar to the previous models we made using the different validation methods.
+
+**Also, when k=n, we essentially have the LOOCV method.**
+
+We can, once again, look at the variation associated with the k-Fold approach by setting different seeds and evaluating different degrees of model. We'll keep $K=10$. We **should** see more variation than LOOCV but less computing time.
+
+```{r}
+startTime3 <- Sys.time()
+
+set.seed(42)
+
+x <- rep(0,10)
+for (i in 1:10) {
+  for (j in 1:10){
+    set.seed(i+1)
+glm.bp <- glm(bp_sys ~ bp_di + bmi + poly(age, j), data=survey)
+summary(glm.bp)
+cv.err <- cv.glm(survey,glm.bp,K=10)
+cv.err$delta
+df[j,i] <- data.frame(cv.err$delta)
+}
+}
+
+z=c(1,2,3,4,5,6,7,8,9,10)
+ggplot(df, aes(x=z)) + 
+  geom_line(aes(y = x), color = "black") + 
+  geom_line(aes(y = bp.mod.mse), color ="red") +
+  geom_line(aes(y = bp.mod.mse.1), color = "blue") + 
+  geom_line(aes(y = bp.mod.mse.2), color ="yellow")+ 
+  geom_line(aes(y = bp.mod.mse.3), color = "green") + 
+  geom_line(aes(y = bp.mod.mse.4), color ="purple") +
+  geom_line(aes(y = bp.mod.mse.5), color = "orange") + 
+  geom_line(aes(y = bp.mod.mse.6), color ="pink") +
+  geom_line(aes(y = bp.mod.mse.7), color = "brown") + 
+  geom_line(aes(y = bp.mod.mse.8), color ="gray") +
+  scale_x_continuous(limits=c(1, 10), breaks=c(seq(from = 1, to = 10, by = 1))) +
+labs(x = "Degree of Model", y = "MSE", title = "Variation in 'Splits'")
+
+endTime3 <- Sys.time()
+time_to_calc3 = endTime3 - startTime3
+
+time_to_calc3
+```
+
+Note the computing time for this method is more than the validation set but less than LOOCV.
+
+Our prediction holds... k-Fold, where *k* is not equal to *n* is an "in-between" for the Validation Set approach and LOOCV in regard to variation and cost.
+
+## But What About Logistic Regression???
+
+Ahhh, Cross-Validation works for that too!!!
+
+Very similar equations as before, but now the LOOCV error rate uses the misclassification rate instead of the MSE:
+
+$$ CV_{(n)} = \frac{1}{n} \sum_{i=1}^{n}{Err_i} $$
+
+And to find the accuracy of our model, we use:
+
+$$ Accuracy = 1 - CV_{(n)}$$
+Now, we'll take a look at the diabetes data set from last lesson and create a model using all regressors:
+
+```{r,results='hide'}
+set.seed(42)
+diab <- read_csv("diabetes.csv")
+diab$Outcome <- as.factor(diab$Outcome)
+glm.diab <- diab %>% glm(Outcome ~ ., family = "binomial", data = .)
+summary(glm.diab)
+
+diab$prediction <- predict(glm.diab, type="response")
+diab$pred_class <- ifelse(diab$prediction > 0.5, 1, 0)
+confusion <- confusionMatrix(as.factor(diab$pred_class), diab$Outcome)
+print(confusion)
+
+```
+
+And our model is:
+$$  log\left(\frac{p}{1-p}\right) = -8.4046964 + 0.1231823 \times (preg.) + 0.0351637 \times (glucose) -0.0132955 \times (bp) + 0.0006190 \times (skinthickness)  -0.0011917 \times (Insulin) + 0.0897010 \times (BMI) + 0.9451797 \times (ped.func) + 0.0148690 \times (age) $$
+
+with an accuracy of .7826
+
+Now, using our k-Fold approach, we can find the estimated accuracy of the test data.
+
+```{r,results='hide'}
+set.seed(42)
+cost <- function(r, pi) 1 - mean(abs(r-pi) > 0.5)  # calculate accuracy
+cv.glm(diab, glm.diab, cost, K = 10)$delta
+
+```
+
+
+And our CV accuracy rate estimate is:
+
+$$ Accuracy = 0.7669271$$
+
+Which is very similar to the model where we used all the observations.
+
+## What is Bootstrapping?
+
+Bootstrapping is creating multiple samples from a single data set. Random samples are generated from a data set, with replacement, where the sample size is less than or equal to the size of the original data set. This can be done a large number of times to essentially give us more samples of data to estimate the variation in our coefficients.
+
+We create multiple subsets of the original data with replacement and do this "B" times. Every time we do this, we produce an estimate for our variance. We can take these estimates and find the standard error of them.
+
+To do this, we first set up a function to get the coefficients from the linear regression using the same number of observations, but randomly selected. We'll go back to our NHANES data and predicting bp_sys
+```{r,results='hide'}
+set.seed(42)
+n <- length(survey$bp_sys)
+boot.fn.di <- function(data, index){
+lm(bp_sys ~ bp_di + bmi + poly(age,2), data = data[index,])$coef
+}
+boot.fn.di(survey,sample(n, n, replace = TRUE))
+
+```
+And our model using sample size of n and seed "42" is:
+
+$$  \hat{bp_{sys}} = 57.3718689 + 0.7024860 \times (bp_{di}) +0.5446186 \times (bmi) + 119.0170139 \times (age) + 89.4136649 \times (age)^2 $$
+
+
+We can change the seed to see how our coefficients change in our new model:
+
+
+```{r,results='hide'}
+set.seed(142)
+boot.fn.di(survey, sample(n, n, replace = TRUE))
+
+```
+
+$$  \hat{bp_{sys}} = 63.5333265 + 0.6687571 \times (bp_{di}) + 0.5227521 \times (bmi) + 141.7818663 \times (age) + 104.2665906 \times (age)^2 $$
+
+So the bootstrap changes pretty dramatically with different seeds.
+
+If we stick to one sample size and run the bootstrap 1,000 times we can calculate the bias and standard error for each coefficient.
+
+```{r}
+boot(survey, boot.fn.di, 1000)
+```
+
+And compare these results with the MLE estimates.
+```{r}
+set.seed(42)
+summary(lm(bp_sys ~ bp_di + bmi + poly(age,2), data = survey))$coef
+
+```
+
+And see that they are fairly comparable as before, however, the bootstrap shows larger standard error in the coefficients.
+
+This is because, when using a linear model, we are assuming a normal distribution of the residuals. The bootstrap doesn't use this assumption. It uses the actual distribution of residuals, and since they're not **exactly** normal, we see greater variance.
+
+
