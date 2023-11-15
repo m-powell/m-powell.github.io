@@ -1,0 +1,199 @@
+---
+title: "TBOS - Chapter 7"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+date: "2023-11-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(ISLR2)
+attach(Wage)
+library(splines)
+library(gam)
+```
+
+# 7. Moving Beyond Linearity
+
+## Polynomial Regression
+
+```{r}
+fit <- lm(wage ~ poly(age, 4), data = Wage)
+coef(summary(fit))
+```
+This gives a matrix whose columns are a basis of orthogonal polynomials (a linear combination of the variables age, age^2, age^3, and age^4). There are multiple ways to fit this model, including using the $\textit{wrapper}$ function $I()$, or the "cbind()" function
+
+```{r}
+agelims <- range(age)
+age.grid <- seq(from = agelims[1], to = agelims[2])
+preds <- predict(fit, newdata = list(age = age.grid), se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit, preds$fit - 2 * preds$se.fit)
+
+par(mfrow = c(1,2), mar = c(4.5, 4.5, 1, 1), oma = c(0, 0, 4, 0))
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Degree-4 Polynomial", outer = T)
+lines(age.grid, preds$fit, lwd = 2, col = "blue")
+matlines(age.grid, se.bands, ldw = 1, col = "blue", lty = 3)
+```
+```{r}
+fit.1 <- lm(wage ~ age, data = Wage)
+fit.2 <- lm(wage ~ poly(age, 2), data = Wage)
+fit.3 <- lm(wage ~ poly(age, 3), data = Wage)
+fit.4 <- lm(wage ~ poly(age, 4), data = Wage)
+fit.5 <- lm(wage ~ poly(age, 5), data = Wage)
+anova(fit.1, fit.2, fit.3, fit.4, fit.5)
+```
+Next, we fit models from linear through 5th-degree polynomial, and use the anova() function to determine the "best" model using an F-test. The analysis of variance analyzes the differences between two or more means. The p-values compare that model to the previous model. From that column, we see that a degree-3 or degree-4 polynomial is sufficient, while lower- or higher-ordered functions are not justified. We could also just look at the same p-values through the "coef()" function:
+
+```{r}
+coef(summary(fit.5))
+```
+As always, we could also choose the degree of polynomial using cross-validation. 
+
+### Polynomial regression for classification variables 
+
+```{r}
+fit <- glm(I(wage > 250) ~ poly(age, 4), data = Wage, family = binomial)
+preds <- predict(fit, newdata = list(age = age.grid), se = T)
+pfit <- exp(preds$fit) / (1+ exp(preds$fit))
+se.bands.logit <- cbind(preds$fit + 2 * preds$se.fit, preds$fit - 2 * preds$se.fit)
+se.bands <- exp(se.bands.logit) / (1 + exp(se.bands.logit))
+
+plot(age, I(wage > 250), xlim = agelims, type = "n", ylim = c(0, 0.2))
+points(jitter(age), I((wage > 250) / 5), cex = 0.5, pch = "|", col = "darkgrey")
+lines(age.grid, pfit, lwd = 2, col = "blue")
+matlines(age.grid, se.bands, lwd = 1, col = "blue", lty = 3)
+```
+
+We model the binary event, $wage>250$ using logistic regression, again with a degree-4 polynomial. The fitted posterior probability of wage exceeding $250,000 is shown in blue, along with an estimated 95% confidence interval. We have drawn the age values corresponding to the observations with wage values above 250 as gray marks on the top of the plot, and those with wage values below 250 are shown as gray marks on the bottom of the plot.
+
+## Step Functions
+
+```{r}
+table(cut(age, 4))
+fit <- lm(wage ~ cut(age, 4), data = Wage)
+preds <- predict(fit, newdata = list(age = age.grid), se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit, preds$fit - 2 * preds$se.fit)
+coef(summary(fit))
+```
+
+```{r}
+par(mfrow = c(1,2), mar = c(4.5, 4.5, 1, 1), oma = c(0, 0, 4, 0))
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Step function", outer = T)
+lines(age.grid, preds$fit, lwd = 2, col = "blue")
+matlines(age.grid, se.bands, ldw = 1, col = "blue", lty = 3)
+
+```
+
+Step functions break the data into "bins" and fit a different constraint (essentially the mean for that bin) to each bin. These lead us into the idea of splines. 
+
+## Regression Splines
+
+```{r}
+fit <- lm(wage ~ bs(age, knots = c(25, 40, 60)), data = Wage)
+pred <- predict(fit, newdata = list(age = age.grid), se = T)
+plot(age, wage, col = "gray")
+lines(age.grid, pred$fit, lwd = 2)
+lines(age.grid, pred$fit + 2 * pred$se, lty = "dashed")
+lines(age.grid, pred$fit - 2 * pred$se, lty = "dashed")
+```
+
+This is a cubic spline (piecewise polynomial with continuous 1st/2nd-order derivatives at the knots) function using basis functions from the "bs()" function in R. We specified knots at 25, 40, and 60, giving it seven degrees of freedom (intercept and six basis functions). Instead of specifying knot locations, we can have R choose knots at the 25th, 50th, and 75th percentiles of $age$:
+
+```{r}
+attr(bs(age, df = 6), "knots")
+```
+R can also do a natural spline (regression spline with additional constraints that the function is linear at the boundaries) using the $ns()$ function:
+
+```{r}
+fit2 <- lm(wage ~ ns(age, df = 4), data = Wage)
+pred2 <- predict(fit2, newdata = list(age = age.grid), se = T)
+plot(age, wage, col = "gray")
+lines(age.grid, pred2$fit, col = "red", lwd = 2)
+lines(age.grid, pred2$fit + 2 * pred2$se, lty = "dashed")
+lines(age.grid, pred2$fit - 2 * pred2$se, lty = "dashed")
+```
+
+
+## Smoothing Splines
+
+Next, we can fit a smoothing spline to the data. Smoothing splines use a tuning parameter, $\lambda$, and we try and minimize:
+
+$$\sum_{i-1}^n(y_i-g(x_i))^2+\lambda \int g^{''}(t)^2dt$$
+
+```{r}
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Smoothing Spline")
+fit <- smooth.spline(age, wage, df = 16)
+fit2 <- smooth.spline(age, wage, cv = TRUE)
+fit2$df
+lines(fit, col = "red", lwd = 2)
+lines(fit2, col = "blue", lwd = 2)
+legend("topright", legend = c("16 DF", "6.8 DF"), col = c("red", "blue"), lty = 1, lwd = 2, cex = 0.8)
+```
+
+The red line indicates a smoothing spline where we define 16 degrees of freedom. The blue line indicates "6.8" degrees of freedom, selected using cross-validation of 6.794596. 
+
+## Local Regression
+
+Local regression involves fitting functions using a percent of nearby training observations. Here, we do local regression using 20% (red) and 50% (blue) of the observations:
+
+```{r}
+plot(age, wage, xlim = agelims, cex = 0.5, col = "darkgrey")
+title("Local Regression")
+fit <- loess(wage ~ age, span = 0.2, data = Wage)
+fit2 <- loess(wage ~ age, span = 0.5, data = Wage)
+lines(age.grid, predict(fit, data.frame(age = age.grid)), col = "red", lwd = 2)
+lines(age.grid, predict(fit2, data.frame(age = age.grid)), col = "blue", lwd = 2)
+legend("topright", legend = c("Span = 0.2", "Span = 0.5"), col = c("red", "blue"), lty = 1, lwd = 2, cex = 0.8)
+```
+
+
+## Generalized Additive Models
+
+$$y_i = \beta_0 = \beta_1x_{i1} + ... + \beta_px_{ip} + \epsilon_i$$
+
+```{r}
+gam.m3 <- gam(wage ~ s(year, 4) + s(age, 5) + education, data = Wage)
+par(mfrow = c(1,3))
+plot(gam.m3, se = TRUE, col = "blue")
+```
+
+Here we do a GAM using a smoothing spline on $year$ with 4 degrees of freedom, and a smoothing spline on $age$ with 5 degrees of freedom. We also include $education$ as a qualitative variable using a step function. Each plot displays the fitted function and pointwise standard errors.
+
+```{r}
+gam1 <- lm(wage ~ ns(year, 4) + ns(age, 5) + education, data = Wage)
+par(mfrow = c(1,3))
+plot.Gam(gam1, se = TRUE, col = "red")
+```
+
+This is the same GAM using natural splines instead of smoothing splines. In R, we've used two different commands, $lm()$ to create a linear model where we define the arguments, and the $gam()$ function from the $gam$ library. 
+
+```{r}
+summary(gam.m3)
+```
+
+This is the summary of the GAM involving smoothing splines.
+
+```{r}
+gam.lr <- gam(I(wage > 250) ~ year + s(age, df = 5) + education, family = binomial, data = Wage)
+par(mfrow = c(1,3))
+plot(gam.lr, se = T, col = "green")
+```
+
+This is a logistic regression GAM used to see relationships between those earners above and below $250,000 based on age and education level (less than HS graduate through advanced degrees). 
+
+```{r}
+table(education, I(wage > 250))
+```
+
+```{r}
+gam.lr.s <- gam(I(wage > 250) ~ year + s(age, df = 5) + education, family = binomial, data = Wage, subset = (education != "1. < HS Grad"))
+par(mfrow = c(1,3))
+plot(gam.lr.s, se = T, col = "green")
+```
+
