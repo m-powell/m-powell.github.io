@@ -1,0 +1,253 @@
+---
+title: 'TBOS: Multiple Testing'
+author: 'LTC Mike Powell'
+output:
+  html_document:
+    toc: true
+    toc_float: true  
+date: "2024-03-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+### Motivation
+
+This isn't a flashy topic, but it might just keep your name out of [Retraction Watch](https://retractionwatch.com/).
+
+Why do we need to learn about multiple testing?  Well, because there are still tons of people in the world who don't understand this cartoon:
+
+![(Image from https://xkcd.com/882/.)](xkcd-jelly-beans.png)
+
+While this topic may not be a cutting-edge machine learning technique, it should be in the back of your mind while you're planning and doing any data analysis.  If it isn't, you may produce yet another finding that can't be replicated -- especially if you're working with big data.
+
+### References
+
+The content for this talk comes from [An Introduction to Statistical Learning - Chapter 13](https://www.statlearning.com/) and the [associated video series](https://www.youtube.com/playlist?list=PLoROMvodv4rOzrYsAxzQyHb8n_RWNuS1e) the authors created for their online course and have posted on YouTube.
+
+# Hypothesis Testing
+
+Single versus multiple?  What's the difference?
+
+Consider the following two scenarios:
+
+1. I think generic drug A might mitigate severe COVID symptoms.
+
+2. I think there's a generic drug that might mitigate severe COVID symptoms.
+
+In scenario 1, you have a well-reasoned hypothesis about a particular drug, and you set out to conduct a study that tests this hypothesis.  In scenario 2, you may have a lot of candidate drugs that you think might reasonably have protective effects for COVID-infected individuals.  You could also be exploring hundreds of drugs you nothing about with the same goal in mind -- finding a drug that has COVID-related benefits.  None of these approaches are inherently wrong, but we must handle the data analysis differently.
+
+## What is hypothesis testing?
+
+In general, hypothesis testing helps us answer a yes or no question: does drug A mitigate severe COVID symptoms?  We answer the question in four steps.
+
+1. Define the null and alternative hypotheses:
+
+- $H_0$: The null hypothesis is the default state of the world, the nothing-interesting-to-see-here result, the no-difference or no-effect possibility.  In our case, it is simply, "Drug A has no effect on a person's likelihood of experiencing severe COVID symptoms."
+
+- $H_a$: The alternative hypothesis suggests that something different or unexpected is actually going on that differs from the default state of the world specified in the null hypothesis.  In our case, it is simply, "Drug A has an effect on a COVID-infected person's likelihood of experiencing severe COVID symptoms."
+
+2. Construct a test statistic.
+
+- A test statistic is the quantity that measures the phenomenon of interest, and it comes from sample data.  In our case, perhaps it's the difference in sample proportions of people experiencing severe COVID symptoms between a group who takes drug A and a group who doesn't.  The test statistic changes form based on the test.  We often go to standardized statistics to make the value more interpretable as-is.
+
+3. Compute the appropriate p-value.
+
+- A $p$-value represents the probability of seeing a value for the test statistic at least as extreme as the one observed, assuming the null hypothesis is true.  In our example, it's the probability of seeing a difference in sample proportions as big or bigger than the observed difference when we assume there truly is no difference.
+
+4. Decide whether or not to reject the null hypothesis.
+
+- Was there sufficient evidence to reject the no-difference null hypothesis?  What should qualify as sufficient evidence?  Naturally, there is no single $p$-value threshold that should automatically trigger rejecting the null hypothesis.  Think about it this way: are you ready to turn our belief in something upside down over a 1-in-20 finding?  It depends on how serious it is if you're wrong.
+
+## Types of Errors
+
+| Study Finding | Truth | Correct? | Description | Type of Error |
+|:-------------:|:-----:|:--------:|:-----------:|:-------------:|
+| Drug A works! | Drug A works! | Yes | True Positive | None |
+| Drug A has no effect. | Drug A works! | No | False Negative | Type 2 |
+| Drug A works! | Drug A has no effect. | No | False Positive | Type 1 |
+| Drug A has no effect. | Drug A has no effect. | Yes | True Negative | None | 
+
+Of our two error types, which one is worse?  Well, that depends on the context.  Would you rather give people a drug that may have no effect or fail to identify a drug that's truly beneficial?  We generally default to an innocent-until-proven-guilty mindset in this regard.  If you're going to upset the status quo, you need lots of evidence -- especially in medicine...and physics.
+
+# Multiple Hypothesis Testing
+
+The availability of big data makes testing numerous hypotheses (thousands, even tens of thousands!) relatively easy.  I can look for an association between a particular type of cancer and any of 10,000+ biomarkers.  You know what I'll find?  Something...guaranteed.  
+
+But most of what I've found are Type 1 errors!  Why?  Let's do a quick simulation.  What's the probability that I could flip a fair coin and get 10 heads or 10 tails?
+
+```{r}
+# Multiply by 2 because all heads or all tails qualifies.
+(1/2)^10 * 2 
+```
+
+So, about 0.002 or 1 in 500.  Let's test 10,000 coins.
+
+```{r}
+library(tidyverse)
+set.seed(match(c("T","B","O","S"), LETTERS) %>% sum()) # 56
+flips <- rbinom(10000,10,0.5)
+p_values <- tibble(left = pbinom(flips, 10, 0.5, lower.tail = TRUE),
+                   right = pbinom(flips, 10, 0.5, lower.tail = FALSE)) %>% 
+  mutate(p_value = ifelse(left < right, left, right) * 2) %>% 
+  pull(p_value)
+sum(flips %% 10 == 0) # mod(flips, 10) = 0 when flips = 0 or 10
+```
+
+We found 17 coins that must have two heads or two tails!  Unlike real life, we know the truth about these coins.  All of them were fair.  In our COVID drug example, the real truth may be unknowable.  We should expect, however, that most of what we've uncovered are Type 1 errors.  We've incorrectly changed our belief about the world...turned things upside down for no reason...got a headline news story and a highly cited paper, but it's actually all wrong.  The drug really doesn't help, etc.
+
+But where exactly did we go wrong?  Our 17 "drugs" all had p-values less than 1/500.  That's great, but correcting for multiple testing would have revealed that our result was not surprising -- it was expected.
+
+# Correcting for Multiple Testing
+
+There's a tradeoff between Type 1 and Type 2 errors, and we generally prefer to minimize Type 1 errors if at all possible.  Specifically, we reject when $p<\alpha$ in order to keep the probability of a type 1 error below $\alpha$ (our significance level is $\alpha = 0.05$, for example).
+
+Now that we have multiple hypotheses to test (perhaps $m>$ 10,000), we have huge potential for lots of false positives.  We're conducting not just one, but $m$ different hypothesis tests.  Historically, $m$ may have been pretty small, perhaps even just 3-5.  Now that $m$ may number in the thousands or even higher, we need to carefully select our methods.
+
+If we just always reject at $p<0.05$, we'll reject a ton of hypotheses!
+
+## Approach 1: I really, really don't want to make a Type 1 error.
+
+If you perform enough tests, you're almost guaranteed to get at least one false positive.  In fact, we expect to falsely reject roughly $m*\alpha$ null hypotheses just by chance!  That's not good.
+
+Let's try to limit these by addressing the Family-Wise Error Rate -- the probability that we make *at least one* Type 1 error.  We do not want a single incorrectly rejected null hypothesis.  We can't stomach the possibility of saying a drug works if it really doesn't.
+
+Note: You never actually know when the null hypothesis is true or not, but we're dead set against a convicting an innocent person (so many good analogies here!).  Here's our expectation for the family-wise rate.
+
+$$FWER = 1 - \prod_{j=1}^m (1-\alpha) = 1 - (1 - \alpha)^m$$
+
+```{r, echo = FALSE}
+m = seq(1,5000,1)
+FWER_05 = 1 - (1 - 0.05)^m
+FWER_01 = 1 - (1 - 0.01)^m
+FWER_001 = 1 - (1 - 0.001)^m
+df = tibble(m, FWER_05, FWER_01, FWER_001) %>% 
+  pivot_longer(cols = !m, names_to = "sig", values_to = "FWER")
+df %>% 
+  ggplot(aes(x = m, y = FWER, color = sig)) + 
+  geom_line() + 
+  scale_x_continuous(trans = "log10") + 
+  theme_minimal() + 
+  scale_color_manual(name = expression(alpha),
+                     labels = c("0.001", "0.01", "0.05"),
+                     values = c("green", "blue", "red")) + 
+  labs(title = "Family-Wise Error Rate for Multiple Testing")
+
+
+```
+
+### Two Well-Known Options to Control FWER
+
+**Bonferroni Correction**: This is extremely well-known, extremely simple, and quite often very conservative (makes it very hard to reject $H_0$ for large $m$).
+
+How does it work?  Compare $p$-values to $\alpha / m$.  Is that it?  Yes, that's it.  It's often more common (and equivalent) to multiply your $p$-values by $m$ and compare them to your original significance level.  
+
+The benefit is that we expect this to keep $FWER < \alpha$, quite possibly way lower in practice.
+
+A quick example:  You have five instructors in MA206.  You want to see if any of their section averages are significantly different than 85%.  If we're conducting five hypothesis tests, what do we do?  Just divide $\alpha/m = 0.05/5 = 0.01$.  Now compare your five $p$-values to 0.01 instead of 0.05 (or equivalently, multiply all $p$-values by 5 and compare to 0.05)  Let's apply the Bonferroni correction to the $p$-values from our suspicious coins (R multiplies by $m$).
+
+```{r}
+adjusted_p_bonf <- p.adjust(p_values, method = "bonferroni")
+# What percentage of coins were significant originally?
+mean(p_values < 0.05)
+# How about after Bonferroni correction?
+mean(adjusted_p_bonf < 0.05)
+```
+
+A slight twist: You have five instructors in MA206.  You want to see if the highest instructor average is significantly more than 85%.  We're just doing one test, right?  So we should compare our p-value to 0.05?  No -- we actually considered all five instructors when we picked the one.
+
+**Holm-Bonferroni**: This approach is always *at least as powerful* as Bonferroni (and often more powerful), and it's not that hard to compute.  You can certainly have R do it for you.
+
+- Compute $p$-values for all of your hypothesis tests.  
+
+- Order $p_1$ to $p_m$ smallest to largest.
+
+- Define a threshold $p_L$ for comparison:
+
+$$ L = min\left\{j:p_{(j)}>\frac{\alpha}{m+1-j} \right\} $$
+
+-  Reject all null hypotheses $H_{0,j}$ for which $p_{(j)} < p_L$.
+
+This is guaranteed to control the FWER **AND** will reject at least as many null hypotheses as Bonferroni...but often more.
+
+```{r}
+adjusted_p_holm <- p.adjust(p_values, method = "holm")
+# What percentage of coins were significant originally?
+mean(p_values < 0.05)
+# How about after Holm-Bonferroni correction?
+mean(adjusted_p_holm < 0.05)
+```
+
+Holm-Bonferroni is much less popular, but if our goal is to make discoveries, it very well may be better...and certainly not worse.  There are other options for special cases that leverage other information, but Bonferroni and Holm-Bonferroni always apply.
+
+## Approach 2: I just want to control my false positive rate.  
+
+FWER wanted to control the probability a making **1** Type 1 error. False Detection Rate (FDR) wants to control the Type 1 error rate.  By trying to avoid any Type 1 errors, we tend to never reject any null hypotheses, especially if $m$ is large.  
+
+However, some allowance for Type 1 errors may be necessary if our goal is discovery.  This is a big difference between exploratory and confirmatory research.  Why else would we do 10,000 hypothesis tests if we're not looking for promising things to investigate further?  We may be perfectly fine with some Type 1 errors - perhaps even 20%!
+
+It would certainly be unacceptable to have a 20% false conviction rate, but if we're testing tons of drug targets, let's find a bunch to investigate further.  We want them to be profitable to investigate on average, but it's okay if not everything pans out.
+
+**Benjamini-Hochberg**: Here we control the false discovery rate as follows:
+
+- Specify $q$, the level at which to control the False Discovery Rate (e.g., 0.2).
+
+- Compute $p$-values for every test.
+
+- Order the p-values.
+
+- Define:
+
+$$L = max\left\{j:p_{(j)}<\frac{qj}{m} \right\}$$
+
+- Reject as long as $p_{(j)}<p_L$.
+
+False positives are fine...just not too many.
+
+```{r}
+q_adjusted_BH <- p.adjust(p_values, method = "BH")
+# What percentage of coins were significant originally?
+mean(p_values < 0.05)
+# What percentage of null hypotheses would we reject if 
+# we allow a False Discovery Rate of up to 20%?
+mean(q_adjusted_BH < 0.2)
+```
+
+## A Better Example than Coins (too few distinct p-values)
+
+$H_0$: The average height of a cadet is 5'9".  
+
+$H_a$: It isn't.
+
+We'll draw 100 samples of 10 cadets that truly are drawn from a normally distributed population with cadets having a mean height of 5'9" and a standard deviation of 3 inches.
+
+```{r}
+set.seed(match(c("T","B","O","S"), LETTERS) %>% sum()) # 56
+samples <- replicate(100, rnorm(10, 69, 3))
+mus <- apply(samples, MARGIN = 2, mean)
+sds <- apply(samples, MARGIN = 2, sd)
+zs <- (mus - 69) / (sds / sqrt(10))
+ps_left <- pnorm(zs, lower.tail = TRUE)
+ps_right <- pnorm(zs, lower.tail = FALSE)
+ps <- 2 * ifelse(ps_left < ps_right, ps_left, ps_right)
+hist(ps)
+```
+
+```{r}
+# What percentage of sample means were significant originally?
+mean(ps < 0.05)
+
+# How about after Bonferroni correction?
+adjusted_p_bonf <- p.adjust(ps, method = "bonferroni")
+mean(adjusted_p_bonf < 0.05)
+
+# How about after Holm-Bonferroni correction?
+adjusted_p_holm <- p.adjust(ps, method = "holm")
+mean(adjusted_p_holm < 0.05)
+
+# What percentage of null hypotheses would we reject if 
+# we allow a False Discovery Rate of up to 20%?
+q_adjusted_BH <- p.adjust(ps, method = "BH")
+mean(q_adjusted_BH < 0.2)
+```
