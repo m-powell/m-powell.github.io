@@ -19,26 +19,26 @@ Student Teams and Topics:
 
 - [Evan and John](Evan_and_John.pdf): "Questionable Game-Ending Strike 3 Calls"
 
-- [Aiden and Ethan](Aiden_and_Ethan.pdf): "better title to come..."
+- [Aiden and Ethan](Aiden_and_Ethan.pdf): "Are home runs the key to a championship?"
 
-- [John and Skyler](John_and_Skyler.pdf) / [slides](John_and_Skyler_slides.pdf): "better title to come..."
+- [John and Skyler](John_and_Skyler.pdf) / [slides](John_and_Skyler_slides.pdf): "Ordinal Logistic Regression Basketball Salary Prediction"
 
-- [John and Jackson](John_and_Jackson.pdf): "better title to come..."
+- [John and Jackson](John_and_Jackson.pdf): "NFL Touchdown vs. Field Goal Expectancy Matrices"
 
-- [Hayden and Sean](Hayden_and_Sean.pdf): "better title to come..."
+- [Hayden and Sean](Hayden_and_Sean.pdf): "Linear Regression: NCAA Men’s Basketball Statistical Analysis"
 
-- [Ryan and Avi](Ryan_and_Avi.pdf): "better title to come..."
+- [Ryan and Avi](Ryan_and_Avi.pdf): "Logistic Regression: Predicting Winners of UFC Fights"
 
-- [Bryson and Samin](Bryson_and_Samin.pdf): "better title to come..."
+- [Bryson and Samin](Bryson_and_Samin.pdf): "Logistic Regression: NFL Combine and Wide Receiver Success"
 
-- [Mike and Ryan](Mike_and_Ryan.pdf): "better title to come..."
+- [Mike and Ryan](Mike_and_Ryan.pdf): "Logistic Regression: NFL Fourth-Down Conversions"
 
-- [Manzi and Henry](Manzi_and_Henry.pdf): "better title to come..."
+- [Manzi and Henry](Manzi_and_Henry.pdf): "Quantile Regression: Predicting Multiple Outcomes in Basketball"
 
-- [Nick and Lucas](Nick_and_Lucas.pdf): "better title to come..."
+- [Nick and Lucas](Nick_and_Lucas.pdf): "Logistic Regression: Predicting the NFL MVP"
 
-- [Garrett](Garrett.pdf): "better title to come..."
+- [Garrett](Garrett.pdf): "Model Assessment: Predicting MLB All-Stars"
 
-- [Bridget and Claire](Bridget_and_Claire.pdf): "better title to come..."
+- [Bridget and Claire](Bridget_and_Claire.pdf) / [slides](Bridget_and_Claire_slides.pdf): "Two-Sample t-Test: Free Kick Accuracy in Soccer"
 
-- [Karly and Billy](Karly_and_Billy.pdf): "better title to come..."
+- [Karly and Billy](Karly_and_Billy.pdf): "Logistic Regression: Women's College Basketball Shooting Accuracy"
