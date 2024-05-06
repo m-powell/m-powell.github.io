@@ -21,7 +21,7 @@ Student Teams and Topics:
 
 - [Aiden and Ethan](Aiden_and_Ethan.pdf): "better title to come..."
 
-- [John and Skyler](John_and_Skyler.pdf): "better title to come..."
+- [John and Skyler](John_and_Skyler.pdf) / [slides](John_and_Skyler_slides.pdf): "better title to come..."
 
 - [John and Jackson](John_and_Jackson.pdf): "better title to come..."
 
