@@ -1,0 +1,18 @@
+---
+title: "MA388 Sabermetrics (AY24-2)"
+subtitle: "Course Project Directory"
+output: html_document
+date: "2024-05-06"
+---
+
+For the course project in MA388 Sabermetrics (AY24-2), students developed an instructional module designed to teach undergraduates students an important concept or technique in statistics using a sports application.  The instructions for constructing these modules were patterned after the requirements of the [SCORE Network](https://scorenetwork.org/index.html).
+
+<center>
+![](SCORE_logo.png)
+</center>
+
+Student Teams and Topics:
+
+- [Haley and Sam](Haley_and_Sam.pdf): "How many points is a win in the NFL?"
+
+- [Evan and John](Evan_and_John.pdf): "Questionable Game-Ending Strike 3 Calls"
