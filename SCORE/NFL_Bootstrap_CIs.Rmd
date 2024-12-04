@@ -1,0 +1,110 @@
+---
+title: "Bootstrap the Super Bowl! Comparing QBs (Yards per Completion) and RBs (Yards per Carry"
+output: html_document
+date: "2024-05-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Motivate the topic.
+
+Compare QBs and RBs - is it all about the average?  yards per completion, yards per carry
+
+Do big plays matter?
+
+Bootstrapping helps us estimate variability in our estimated statistic.
+
+# State the Learning Objectives.
+
+# Introduce the data.
+
+# What is bootstrapping?
+
+Instruction goes here
+
+# Example - QB comparison...
+
+# Student Challenge!
+
+Do the same thing for McCaffrey (49ers) and Pacheco (Chiefs)...
+
+# Conclusion / Recap
+
+```{r}
+library(nflfastR)
+library(tidyverse)
+```
+
+```{r}
+pbp <- nflfastR::load_pbp(2023)
+```
+
+```{r}
+pbp %>% 
+  filter(passer_player_name %in% c("P.Mahomes", "B.Purdy")) %>% 
+  group_by(passer_player_name) %>% 
+  count()
+```
+
+```{r}
+pbp %>% 
+  filter(passer_player_name %in% c("P.Mahomes", "B.Purdy"),
+         play_type == "pass") %>%
+  filter(str_detect(game_id, "2023_22")) %>% 
+  group_by(passer_player_name) %>% 
+  summarize(mean = mean(passing_yards, na.rm = TRUE),
+            n = n)
+```
+
+```{r}
+sb_qb_df <- pbp %>% 
+  filter(passer_player_name %in% c("P.Mahomes", "B.Purdy"),
+         play_type == "pass",
+         complete_pass == 1) %>%
+  filter(str_detect(game_id, "2023_22"))
+```
+
+```{r}
+sb_qb_df %>% 
+  ggplot(aes(x = passing_yards)) + 
+  geom_histogram() + 
+  facet_wrap(~passer_player_name, ncol = 1)
+```
+
+```{r}
+# Compute sample means
+sb_qb_df %>% 
+  group_by(passer_player_name) %>% 
+  summarize(mean = mean(passing_yards),
+            sd = sd(passing_yards),
+            n = n())
+```
+
+```{r}
+# Construct bootstrap CIs for each QB
+mahomes <- sb_qb_df %>% 
+  filter(passer_player_name == "P.Mahomes") %>% 
+  pull(passing_yards)
+purdy <- sb_qb_df %>% 
+  filter(passer_player_name == "B.Purdy") %>% 
+  pull(passing_yards)
+mahomes_boot_dist <- replicate(n = 1000, sample(mahomes, replace = TRUE) %>% mean())
+purdy_boot_dist <- replicate(n = 1000, sample(purdy, replace = TRUE) %>% mean())
+
+quantile(mahomes_boot_dist, c(0.025,0.975))
+quantile(purdy_boot_dist, c(0.025,0.975))
+
+t.test(mahomes, purdy)
+```
+
+# Running Back Comparison
+
+```{r}
+sb_rb_df <- pbp %>% 
+  filter(rusher_player_name %in% c("C.McCaffrey", "I.Pacheco"),
+         play_type == "run") %>%
+  filter(str_detect(game_id, "2023_22"))
+```
+
