@@ -2,5 +2,12 @@
 
 | Method   | Python                                         | R                                              |
 |----------|-----------------------------------------------|-----------------------------------------------|
-| Method 1 | [Python Implementation of Method 1](link1.md) | [R Implementation of Method 1](link2.md)     |
-| Method 2 | [Python Implementation of Method 2](link3.md) | [R Implementation of Method 2](link4.md)     |
+| Clustering | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Deep Learning | [Python Implementation of Method 2](placeholder-python.md) | [R Implementation of Method 2](placeholder-R.md)     |
+| Ensemble Methods (XGBoost) | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Random Forests | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Linear Discriminant Analysis | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Principal Component/Coordinates Analysis (PCA/PCoA) | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Support Vector Machines | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+
+
