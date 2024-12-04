@@ -1,3 +1,9 @@
+This page links readers to the code implementations of the methods described in this paper: 
+
+*citation*
+
+For each method, you will find a link to the analysis that produces the analysis and figures in the paper.  Our aim is to provide a starting point in both Python and R for you to be able to implement the methods described on your own data for your own research question.
+
 # Table of Contents
 
 | Method   | Python                                         | R                                              |
