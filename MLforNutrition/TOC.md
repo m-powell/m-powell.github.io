@@ -3,7 +3,7 @@
 | Method   | Python                                         | R                                              |
 |----------|-----------------------------------------------|-----------------------------------------------|
 | Clustering | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
-| Deep Learning | [Python Implementation of Method 2](placeholder-python.md) | [R Implementation of Method 2](placeholder-R.md)     |
+| Deep Learning | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Ensemble Methods (XGBoost) | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Random Forests | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Linear Discriminant Analysis | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
