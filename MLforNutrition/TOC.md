@@ -14,6 +14,6 @@ For each method, you will find links to both Python and R code that produce the 
 | Random Forests | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Linear Discriminant Analysis | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Principal Component/Coordinates Analysis (PCA/PCoA) | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
-| Support Vector Machines | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
+| Support Vector Machines | [Python](placeholder-python.md) | [R](SVM-R.md)     |
 
 
