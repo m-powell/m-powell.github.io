@@ -8,6 +8,7 @@ For each method, you will find links to both Python and R code that produce the 
 
 | Method   | Python                                         | R                                              |
 |----------|-----------------------------------------------|-----------------------------------------------|
+| Obtaining NHANES Dataset | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Clustering | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Deep Learning | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
 | Ensemble Methods (XGBoost) | [Python](placeholder-python.md) | [R](placeholder-R.md)     |
