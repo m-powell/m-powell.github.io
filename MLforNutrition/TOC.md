@@ -2,7 +2,7 @@ This page links readers to the code implementations of the methods described in 
 
 *citation*
 
-For each method, you will find links to both Python and R code that produce the analysis and figures in the paper.  Our aim is to provide a starting point in both Python and R for you to be able to implement the methods described on your own data for your own research question.
+For each method, you will find links to both Python and R code that produce the analysis and figures in the paper.  Our aim is to provide a starting point in both Python and R for you to be able to implement the methods described on your own data for your own research question. 
 
 # Table of Contents
 
