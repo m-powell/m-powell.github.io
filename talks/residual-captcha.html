@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in – Google Accounts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  /* ── Google sign-in card ── */
+  .signin-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    width: 448px;
+    padding: 48px 40px 36px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    transition: filter .3s;
+  }
+  .signin-card.blurred { filter: blur(3px); pointer-events: none; }
+
+  .google-logo { width: 75px; margin-bottom: 20px; }
+
+  .signin-card h1 { font-size: 24px; font-weight: 400; color: #202124; margin-bottom: 8px; }
+  .signin-card .subtitle { font-size: 16px; color: #202124; margin-bottom: 24px; }
+
+  .input-group { position: relative; margin-bottom: 8px; }
+  .input-group input {
+    width: 100%; padding: 13px 15px; border: 1px solid #dadce0;
+    border-radius: 4px; font-size: 16px; color: #202124; outline: none;
+    transition: border-color .2s;
+  }
+  .input-group input:focus { border-color: #1a73e8; }
+  .input-group label {
+    position: absolute; left: 15px; top: 13px; font-size: 16px;
+    color: #80868b; pointer-events: none; transition: .2s;
+    background: #fff; padding: 0 4px;
+  }
+  .input-group input:focus + label,
+  .input-group input:not(:placeholder-shown) + label {
+    top: -8px; font-size: 12px; color: #1a73e8;
+  }
+
+  .forgot { text-align: left; font-size: 14px; color: #1a73e8; margin-bottom: 28px; cursor: pointer; }
+  .forgot:hover { text-decoration: underline; }
+
+  .btn-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .btn-create { font-size: 14px; color: #1a73e8; font-weight: 500; cursor: pointer; }
+  .btn-create:hover { text-decoration: underline; }
+
+  .btn-next {
+    background: #1a73e8; color: #fff; border: none; border-radius: 4px;
+    padding: 10px 24px; font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background .2s;
+  }
+  .btn-next:hover { background: #1765cc; }
+
+  .footer { font-size: 12px; color: #80868b; margin-top: 48px; }
+  .footer a { color: #1a73e8; text-decoration: none; }
+
+  /* ── overlay backdrop ── */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay.active { display: flex; }
+
+  /* ── CAPTCHA box ── */
+  .captcha-box {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    width: 420px;
+    overflow: hidden;
+    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  }
+
+  .captcha-header {
+    background: #4a90d9;
+    color: #fff;
+    padding: 14px 18px 10px;
+  }
+  .captcha-header .title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .captcha-header .instruction {
+    font-size: 22px; font-weight: 400; line-height: 1.3;
+  }
+
+  .captcha-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: #ccc;
+    padding: 2px;
+  }
+
+  .captcha-cell {
+    position: relative;
+    cursor: pointer;
+    background: #fff;
+    overflow: hidden;
+  }
+  .captcha-cell canvas { display: block; width: 100%; height: 128px; }
+  .captcha-cell .check-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0, 100, 200, .35);
+    display: none;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 6px;
+  }
+  .captcha-cell.selected .check-overlay { display: flex; }
+  .captcha-cell .checkmark {
+    width: 28px; height: 28px;
+    background: #1a73e8;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .captcha-cell .checkmark svg { width: 18px; height: 18px; }
+
+  .captcha-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid #e8eaf6;
+  }
+  .recaptcha-branding { display: flex; align-items: center; gap: 6px; }
+  .recaptcha-logo { width: 32px; }
+  .recaptcha-text { font-size: 10px; color: #555; line-height: 1.3; }
+  .recaptcha-text a { color: #1a73e8; text-decoration: none; }
+
+  .btn-verify {
+    background: #1a73e8; color: #fff; border: none; border-radius: 4px;
+    padding: 10px 22px; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .btn-verify:hover { background: #1765cc; }
+  .btn-verify:disabled { background: #ccc; cursor: default; }
+
+  /* ── result modal ── */
+  .result-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.5); z-index: 20;
+    align-items: center; justify-content: center;
+  }
+  .result-overlay.active { display: flex; }
+
+  .result-box {
+    background: #fff; border-radius: 8px;
+    padding: 36px 40px; max-width: 440px; width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  }
+  .result-box .result-icon { font-size: 52px; margin-bottom: 16px; }
+  .result-box h2 { font-size: 20px; color: #202124; margin-bottom: 12px; }
+  .result-box p { font-size: 15px; color: #5f6368; line-height: 1.6; margin-bottom: 8px; }
+  .result-box .missed { color: #d93025; font-weight: 500; }
+  .result-box .false-pos { color: #e37400; font-weight: 500; }
+  .result-box .btn-retry {
+    margin-top: 20px; background: #1a73e8; color: #fff;
+    border: none; border-radius: 4px; padding: 10px 28px;
+    font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .result-box .btn-retry:hover { background: #1765cc; }
+</style>
+</head>
+<body>
+
+<!-- ── Google sign-in card ── -->
+<div class="signin-card" id="signinCard">
+  <svg class="google-logo" viewBox="0 0 272 92" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#EA4335" d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z"/>
+    <path fill="#FBBC05" d="M163.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18c0-12.85 9.99-22.18 22.25-22.18s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44s-12.51 5.46-12.51 13.44c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z"/>
+    <path fill="#4285F4" d="M209.75 26.34v39.82c0 16.38-9.66 23.07-21.08 23.07-10.75 0-17.22-7.19-19.66-13.07l8.48-3.53c1.51 3.61 5.21 7.87 11.17 7.87 7.31 0 11.84-4.51 11.84-13v-3.19h-.34c-2.18 2.69-6.38 5.04-11.68 5.04-11.09 0-21.25-9.66-21.25-22.09 0-12.52 10.16-22.26 21.25-22.26 5.29 0 9.49 2.35 11.68 4.96h.34v-3.61h9.25zm-8.56 20.92c0-7.81-5.21-13.52-11.84-13.52-6.72 0-12.35 5.71-12.35 13.52 0 7.73 5.63 13.36 12.35 13.36 6.63 0 11.84-5.63 11.84-13.36z"/>
+    <path fill="#34A853" d="M225 3v65h-9.5V3h9.5z"/>
+    <path fill="#EA4335" d="M262.02 54.48l7.56 5.04c-2.44 3.61-8.32 9.83-18.48 9.83-12.6 0-22.01-9.74-22.01-22.18 0-13.19 9.49-22.18 20.92-22.18 11.51 0 17.14 9.16 18.98 14.11l1.01 2.52-29.65 12.28c2.27 4.45 5.8 6.72 10.75 6.72 4.96 0 8.4-2.44 10.92-6.14zm-23.27-7.98l19.82-8.23c-1.09-2.77-4.37-4.7-8.23-4.7-4.95 0-11.84 4.37-11.59 12.93z"/>
+    <path fill="#4285F4" d="M35.29 41.41V32h31.36c.31 1.64.47 3.58.47 5.68 0 7.06-1.93 15.79-8.15 22.01-6.05 6.3-13.78 9.66-24.02 9.66C16.32 69.35.36 53.89.36 35.45.36 17.01 16.32 1.55 34.95 1.55c10.5 0 17.98 4.12 23.6 9.49l-6.64 6.64c-4.03-3.78-9.49-6.72-16.97-6.72-13.86 0-24.7 11.17-24.7 25.03 0 13.86 10.84 25.03 24.7 25.03 8.99 0 14.11-3.61 17.39-6.89 2.66-2.66 4.41-6.46 5.1-11.65l-22.14.03z"/>
+  </svg>
+
+  <h1>Sign in</h1>
+  <p class="subtitle">to continue to Gmail</p>
+
+  <div class="input-group">
+    <input type="email" id="emailInput" placeholder=" " value="student@example.com">
+    <label for="emailInput">Email or phone</label>
+  </div>
+  <p class="forgot">Forgot email?</p>
+
+  <div class="btn-row">
+    <span class="btn-create">Create account</span>
+    <button class="btn-next" onclick="showCaptcha()">Next</button>
+  </div>
+
+  <p class="footer">
+    <a href="#">English (United States)</a> &nbsp;
+    <a href="#">Help</a> &nbsp;
+    <a href="#">Privacy</a> &nbsp;
+    <a href="#">Terms</a>
+  </p>
+</div>
+
+<!-- ── CAPTCHA overlay ── -->
+<div class="overlay active" id="captchaOverlay">
+  <div class="captcha-box">
+    <div class="captcha-header">
+      <div class="title">Security check</div>
+      <div class="instruction">Select all residual plots for which<br>linear regression appears appropriate.</div>
+    </div>
+
+    <div class="captcha-grid" id="captchaGrid"></div>
+
+    <div class="captcha-footer">
+      <div class="recaptcha-branding">
+        <svg class="recaptcha-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="30" fill="#4a90d9"/>
+          <path d="M32 14 L44 22 L44 38 L32 46 L20 38 L20 22 Z" fill="none" stroke="#fff" stroke-width="3"/>
+          <circle cx="32" cy="32" r="6" fill="#fff"/>
+          <path d="M32 20 L32 14" stroke="#fff" stroke-width="2.5"/>
+          <path d="M40 36 L44 38" stroke="#fff" stroke-width="2.5"/>
+          <path d="M24 36 L20 38" stroke="#fff" stroke-width="2.5"/>
+        </svg>
+        <div class="recaptcha-text">
+          reCAPTCHA<br>
+          <a href="#">Privacy</a> · <a href="#">Terms</a>
+        </div>
+      </div>
+      <button class="btn-verify" onclick="verify()">Verify</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Result overlay ── -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box" id="resultBox"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Plot definitions
+// Each plot has: id, label (shown in result), appropriate (bool), drawFn
+// ─────────────────────────────────────────────
+
+const PLOTS = [
+  {
+    id: 'good1', label: 'Random scatter (no pattern)', appropriate: true,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(1);
+      for (let i = 0; i < 55; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const y = 0.5 + (rng() - 0.5) * 0.45;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'good2', label: 'Random scatter (homoscedastic)', appropriate: true,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(42);
+      for (let i = 0; i < 50; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const y = 0.5 + (rng() - 0.5) * 0.38;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'good3', label: 'Random scatter (sparse)', appropriate: true,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(77);
+      for (let i = 0; i < 38; i++) {
+        const x = 0.06 + rng() * 0.88;
+        const y = 0.5 + (rng() - 0.5) * 0.5;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad1', label: 'Fan / funnel shape (heteroscedasticity)', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(11);
+      for (let i = 0; i < 55; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const spread = 0.05 + x * 0.42;
+        const y = 0.5 + (rng() - 0.5) * spread;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad2', label: 'U-shape (quadratic trend — non-linearity)', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(22);
+      for (let i = 0; i < 55; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const curve = 3.2 * (x - 0.5) ** 2 - 0.3;
+        const y = 0.5 + curve + (rng() - 0.5) * 0.1;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad3', label: 'Inverted U (non-linearity)', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(33);
+      for (let i = 0; i < 55; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const curve = -3.0 * (x - 0.5) ** 2 + 0.3;
+        const y = 0.5 + curve + (rng() - 0.5) * 0.1;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad4', label: 'Systematic positive trend in residuals', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(44);
+      for (let i = 0; i < 50; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const y = 0.25 + x * 0.5 + (rng() - 0.5) * 0.12;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad5', label: 'Outlier cluster distorting fit', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(55);
+      for (let i = 0; i < 44; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const y = 0.5 + (rng() - 0.5) * 0.15;
+        dot(ctx, w, h, x, y);
+      }
+      // extreme outliers
+      [[0.15, 0.85], [0.82, 0.12], [0.55, 0.88]].forEach(([x, y]) => {
+        dot(ctx, w, h, x, y, 5);
+      });
+      hline(ctx, w, h);
+    }
+  },
+  {
+    id: 'bad6', label: 'Reversed funnel (heteroscedasticity)', appropriate: false,
+    draw(ctx, w, h) {
+      drawAxes(ctx, w, h);
+      const rng = seededRNG(66);
+      for (let i = 0; i < 55; i++) {
+        const x = 0.05 + rng() * 0.9;
+        const spread = 0.05 + (1 - x) * 0.42;
+        const y = 0.5 + (rng() - 0.5) * spread;
+        dot(ctx, w, h, x, y);
+      }
+      hline(ctx, w, h);
+    }
+  }
+];
+
+// Shuffle deterministically for reproducibility during a session,
+// but randomize each page load.
+const shuffled = [...PLOTS].sort(() => Math.random() - 0.5);
+
+// ── Drawing helpers ──────────────────────────
+
+function seededRNG(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function drawAxes(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fafafa';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { l: 28, r: 8, t: 8, b: 22 };
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+
+  // y-axis
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t);
+  ctx.lineTo(pad.l, h - pad.b);
+  ctx.stroke();
+
+  // x-axis
+  ctx.beginPath();
+  ctx.moveTo(pad.l, h - pad.b);
+  ctx.lineTo(w - pad.r, h - pad.b);
+  ctx.stroke();
+
+  // axis labels
+  ctx.fillStyle = '#666';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Fitted values', (pad.l + w - pad.r) / 2, h - 4);
+
+  ctx.save();
+  ctx.translate(10, (pad.t + h - pad.b) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Residuals', 0, 0);
+  ctx.restore();
+
+  // store pad on ctx for helpers
+  ctx._pad = pad;
+}
+
+function toCanvas(ctx, w, h, xFrac, yFrac) {
+  const p = ctx._pad;
+  const cx = p.l + xFrac * (w - p.l - p.r);
+  const cy = p.t + (1 - yFrac) * (h - p.t - p.b);
+  return [cx, cy];
+}
+
+function dot(ctx, w, h, xFrac, yFrac, r = 3.5) {
+  const [cx, cy] = toCanvas(ctx, w, h, xFrac, yFrac);
+  ctx.fillStyle = 'rgba(60, 60, 60, 0.65)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function hline(ctx, w, h) {
+  const p = ctx._pad;
+  const [, cy] = toCanvas(ctx, w, h, 0, 0.5);
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(p.l, cy);
+  ctx.lineTo(w - p.r, cy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── Build grid ───────────────────────────────
+
+function buildGrid() {
+  const grid = document.getElementById('captchaGrid');
+  grid.innerHTML = '';
+
+  shuffled.forEach((plot, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'captcha-cell';
+    cell.dataset.idx = idx;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    cell.appendChild(canvas);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'check-overlay';
+    overlay.innerHTML = `<div class="checkmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>`;
+    cell.appendChild(overlay);
+
+    cell.addEventListener('click', () => cell.classList.toggle('selected'));
+    grid.appendChild(cell);
+
+    // draw after layout
+    requestAnimationFrame(() => {
+      const ctx = canvas.getContext('2d');
+      plot.draw(ctx, canvas.width, canvas.height);
+    });
+  });
+}
+
+// ── Verify ───────────────────────────────────
+
+function verify() {
+  const cells = document.querySelectorAll('.captcha-cell');
+  const selected = new Set();
+  cells.forEach(c => { if (c.classList.contains('selected')) selected.add(+c.dataset.idx); });
+
+  const correctSet = new Set(shuffled.map((p, i) => p.appropriate ? i : -1).filter(i => i >= 0));
+
+  const missed = [...correctSet].filter(i => !selected.has(i)).map(i => shuffled[i].label);
+  const falsePos = [...selected].filter(i => !correctSet.has(i)).map(i => shuffled[i].label);
+
+  const perfect = missed.length === 0 && falsePos.length === 0;
+
+  const box = document.getElementById('resultBox');
+  let html = '';
+
+  if (perfect) {
+    html = `
+      <div class="result-icon">✅</div>
+      <h2>Verification passed!</h2>
+      <p>You correctly identified all <strong>${correctSet.size}</strong> appropriate residual plots and rejected all ${9 - correctSet.size} problematic ones.</p>
+      <p>You may now continue signing in — you've demonstrated you understand linear regression assumptions.</p>
+      <button class="btn-retry" onclick="retry()">Try again (new order)</button>
+    `;
+  } else {
+    html = `<div class="result-icon">❌</div><h2>Verification failed</h2>`;
+    if (missed.length > 0) {
+      html += `<p><span class="missed">Missed (should have selected):</span></p>`;
+      missed.forEach(l => { html += `<p style="font-size:13px;color:#5f6368;">• ${l}</p>`; });
+    }
+    if (falsePos.length > 0) {
+      html += `<p style="margin-top:10px"><span class="false-pos">Incorrectly selected:</span></p>`;
+      falsePos.forEach(l => { html += `<p style="font-size:13px;color:#5f6368;">• ${l}</p>`; });
+    }
+    html += `
+      <p style="margin-top:14px;font-size:13px;color:#5f6368;">
+        A good residual plot shows points scattered <em>randomly</em> around zero with <em>constant spread</em>
+        — no curves, no fans, no trends.
+      </p>
+      <button class="btn-retry" onclick="retry()">Try again</button>
+    `;
+  }
+
+  box.innerHTML = html;
+  document.getElementById('resultOverlay').classList.add('active');
+}
+
+function retry() {
+  document.getElementById('resultOverlay').classList.remove('active');
+  // re-shuffle
+  shuffled.sort(() => Math.random() - 0.5);
+  buildGrid();
+}
+
+function showCaptcha() {
+  document.getElementById('signinCard').classList.add('blurred');
+  document.getElementById('captchaOverlay').classList.add('active');
+}
+
+// ── Init ─────────────────────────────────────
+buildGrid();
+</script>
+</body>
+</html>
