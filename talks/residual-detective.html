@@ -110,12 +110,12 @@
   <section id="sec-datasaurus">
     <h2>Part 1 — The Setup</h2>
     <div class="card">
-      <p>Below are the regression results for a real dataset (<i>n</i> = 142). Read the numbers, then guess: what do you think the scatterplot looks like?</p>
+      <p>Below are the regression results for a real dataset (<i>n</i> = 142). Read the numbers, then guess: what do you think the scatter plot looks like?</p>
       <div class="stats-row" id="mystery-stats"></div>
     </div>
 
     <div class="card">
-      <p>Click a few of the 13 "mystery" datasets below. Every single one was fit with <b>the exact same regression procedure</b> shown above.</p>
+      <p>Click a few of the 13 "mystery" datasets below. Every single one was fit with <b>the exact same regression procedure</b> and resulted in a fitted model nearly identical to the one above.</p>
       <div class="mystery-grid" id="mystery-grid"></div>
       <button class="btn secondary" id="reveal-all-btn">Reveal all 13 at once</button>
       <div class="reveal-grid" id="reveal-single"></div>
@@ -124,20 +124,20 @@
     <div class="reveal-grid" id="reveal-grid-all" style="display:none;"></div>
 
     <div class="callout">
-      <b>The point:</b> every one of these 13 datasets has (almost) the same mean x, mean y, standard deviations, correlation, regression line, and R². A best-fit line and an R² value never guarantee the line actually <i>fits</i>. That's exactly what a residual plot is for &mdash; it's built from Part 2 onward.
+      <b>The point:</b> every one of these 13 datasets has (almost) the same mean x, mean y, standard deviations, correlation, regression line, and R². A best-fit line and an R² value never guarantee the line actually <i>fits</i>. That's exactly what a residual plot is for &mdash; let's explore that more in Part 2.
     </div>
   </section>
 
   <!-- ===================== SECTION 2: ANSCOMBE CORE ===================== -->
   <section id="sec-anscombe">
-    <h2>Part 2 — Anscombe's Quartet: reading the residuals</h2>
+    <h2>Part 2 — Anscombe's Quartet: Reading the Residuals</h2>
     <div class="card">
       <p>These four small datasets (<i>n</i> = 11 each) all produce this same regression output:</p>
       <div class="stats-row" id="anscombe-stats"></div>
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0;">The four scatterplots</h3>
+      <h3 style="margin-top:0;">The Four Scatter Plots</h3>
       <div class="anscombe-grid" id="anscombe-grid"></div>
     </div>
 
@@ -148,7 +148,7 @@
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0;">Match each residual plot to what it reveals</h3>
+      <h3 style="margin-top:0;">Match each residual plot to what it reveals.</h3>
       <p>Click a residual plot on the left, then click the interpretation on the right that matches it. Each correct pair gets its own color. Click a matched pair again to undo it and try a different match.</p>
       <div class="progress-row">
         <div class="progress">Matched: <span id="match-count">0</span> / 4</div>
